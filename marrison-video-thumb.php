@@ -1,9 +1,9 @@
 <?php
 /**
  * Plugin Name: Marrison Video Thumbnail
- * Plugin URI:  https://github.com/marrisonlab/marrison-video-thumb/releases/tag/v1.0.1
- * Description: Paste a YouTube URL, pick a thumbnail, add it to WordPress Media Library.
- * Version: 1.0.1
+ * Plugin URI:  https://github.com/marrisonlab/marrison-video-thumb/releases/tag/v1.0.2
+ * Description: Paste a YouTube URL, pick a thumbnail, and add it to the WordPress Media Library.
+ * Version: 1.0.2
  * Author: Marrisonlab
  * Author URI:  https://marrisonlab.com
  */
@@ -23,8 +23,8 @@ class Marrison_Video_Thumb {
 
     public function add_admin_page() {
         add_media_page(
-            'YouTube Thumbnail Extractor',
-            'YouTube Thumbnails',
+            'Marrison Video Thumbnail',
+            'Marrison Video Thumbnail',
             'upload_files',
             'marrison-video-thumb',
             [$this, 'render_admin_page']
@@ -46,12 +46,12 @@ class Marrison_Video_Thumb {
     public function render_admin_page() {
         ?>
         <div class="wrap mvt-wrap">
-            <h1>YouTube Thumbnail Extractor</h1>
-            <p>Incolla l'URL del video YouTube per estrarre le thumbnail disponibili.</p>
+            <h1>Marrison Video Thumbnail</h1>
+            <p>Paste a YouTube video URL to fetch the available thumbnails.</p>
 
             <div class="mvt-form">
                 <input type="text" id="mvt-url" class="regular-text" placeholder="https://www.youtube.com/watch?v=..." />
-                <button id="mvt-fetch" type="button" class="button button-primary">Estrai Thumbnail</button>
+                <button id="mvt-fetch" type="button" class="button button-primary">Fetch Thumbnails</button>
             </div>
 
             <div id="mvt-status" class="mvt-status"></div>
@@ -60,7 +60,7 @@ class Marrison_Video_Thumb {
         </div>
         <script>
             if (typeof jQuery === 'undefined') {
-                document.getElementById('mvt-results').innerHTML = '<p style="color:red;">Errore: jQuery non caricato.</p>';
+                document.getElementById('mvt-results').innerHTML = '<p style="color:red;">Error: jQuery is not loaded.</p>';
             }
         </script>
         <?php
@@ -138,27 +138,23 @@ class Marrison_Video_Thumb {
         $video_id = $this->extract_video_id($url);
 
         if (!$video_id) {
-            wp_send_json_error('URL YouTube non valido. Controlla il formato.');
+            wp_send_json_error('Invalid YouTube URL. Check the format.');
         }
 
         $video_title = $this->extract_video_title($url);
 
-        // Available YouTube thumbnail variants
+        // YouTube exposes only fixed thumbnail variants. Keep the useful ones.
         $candidates = [
-            ['url' => "https://img.youtube.com/vi/{$video_id}/maxresdefault.jpg", 'label' => 'Max Resolution (1280×720)', 'w' => 1280, 'h' => 720],
-            ['url' => "https://img.youtube.com/vi/{$video_id}/sddefault.jpg",    'label' => 'Standard (640×480)',         'w' => 640,  'h' => 480],
-            ['url' => "https://img.youtube.com/vi/{$video_id}/hqdefault.jpg",    'label' => 'High Quality (480×360)',     'w' => 480,  'h' => 360],
-            ['url' => "https://img.youtube.com/vi/{$video_id}/1.jpg",             'label' => 'Frame 25% (120×90)',         'w' => 120,  'h' => 90],
-            ['url' => "https://img.youtube.com/vi/{$video_id}/2.jpg",             'label' => 'Frame 50% (120×90)',         'w' => 120,  'h' => 90],
-            ['url' => "https://img.youtube.com/vi/{$video_id}/3.jpg",             'label' => 'Frame 75% (120×90)',         'w' => 120,  'h' => 90],
+            ['url' => "https://img.youtube.com/vi/{$video_id}/maxresdefault.jpg", 'label' => 'Maximum Resolution (1280 x 720)', 'w' => 1280, 'h' => 720],
+            ['url' => "https://img.youtube.com/vi/{$video_id}/sddefault.jpg",    'label' => 'Standard (640 x 480)',       'w' => 640,  'h' => 480],
         ];
 
-        // Verify which thumbnails actually exist (maxresdefault and sddefault may not)
+        // Verify which thumbnails actually exist.
         $thumbnails = [];
         foreach ($candidates as $thumb) {
             $response = wp_remote_head($thumb['url'], ['timeout' => 10]);
             $code = wp_remote_retrieve_response_code($response);
-            if ($code === 200) {
+            if ($code === 200 && $thumb['w'] >= 640) {
                 $thumb['video_id'] = $video_id;
                 $thumb['video_title'] = $video_title;
                 $thumbnails[] = $thumb;
@@ -166,7 +162,7 @@ class Marrison_Video_Thumb {
         }
 
         if (empty($thumbnails)) {
-            wp_send_json_error('Nessuna thumbnail trovata per questo video.');
+            wp_send_json_error('No thumbnails were found for this video.');
         }
 
         wp_send_json_success(['thumbnails' => $thumbnails]);
@@ -183,7 +179,7 @@ class Marrison_Video_Thumb {
         $video_title = isset($_POST['video_title']) ? sanitize_text_field(wp_unslash($_POST['video_title'])) : '';
 
         if (empty($image_url)) {
-            wp_send_json_error('URL immagine mancante.');
+            wp_send_json_error('Missing image URL.');
         }
 
         if (!function_exists('media_sideload_image')) {
@@ -197,7 +193,7 @@ class Marrison_Video_Thumb {
         // Download the image
         $tmp = download_url($image_url);
         if (is_wp_error($tmp)) {
-            wp_send_json_error('Impossibile scaricare l\'immagine: ' . $tmp->get_error_message());
+            wp_send_json_error('Unable to download the image: ' . $tmp->get_error_message());
         }
 
         // Determine file extension from content-type or URL
@@ -221,15 +217,15 @@ class Marrison_Video_Thumb {
         // Validate the file is an image
         if (!file_is_valid_image($tmp)) {
             @unlink($tmp);
-            wp_send_json_error('Il file scaricato non è un\'immagine valida.');
+            wp_send_json_error('The downloaded file is not a valid image.');
         }
 
-        $attachment_desc = !empty($video_title) ? 'YouTube Thumbnail - ' . $video_title : 'YouTube Thumbnail - ' . $video_id;
+        $attachment_desc = !empty($video_title) ? $video_title : $video_id;
         $attachment_id = media_handle_sideload($file_array, 0, $attachment_desc);
 
         if (is_wp_error($attachment_id)) {
             @unlink($tmp);
-            wp_send_json_error('Errore importazione: ' . $attachment_id->get_error_message());
+            wp_send_json_error('Import error: ' . $attachment_id->get_error_message());
         }
 
         $edit_url = admin_url('post.php?post=' . $attachment_id . '&action=edit');

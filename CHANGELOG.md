@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.2 - 2026-07-14
+- Bumped the plugin to version `1.0.2`.
+- Translated all user-facing labels and messages to English.
+- Updated the admin plugin title to `Marrison Video Thumbnail`.
+- Removed the `YouTube Thumbnail - ` prefix from imported media titles.
+
 ## 1.0.1 - 2026-07-14
 - Updated the plugin header to version `1.0.1`.
 - Pointed the plugin URI to the GitHub release tag for `v1.0.1`.

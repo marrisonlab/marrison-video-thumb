@@ -4,7 +4,7 @@ Tags: youtube, thumbnail, media library, extractor, wordpress admin
 Requires at least: 5.8
 Tested up to: 6.8
 Requires PHP: 7.4
-Stable tag: 1.0.1
+Stable tag: 1.0.2
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -23,7 +23,7 @@ Features:
 == Installation ==
 1. Upload the `marrison-video-thumb` folder to the `/wp-content/plugins/` directory.
 2. Activate the plugin from the WordPress Plugins screen.
-3. Open Media > YouTube Thumbnails.
+3. Open Media > Marrison Video Thumbnail.
 4. Paste a YouTube URL, fetch the thumbnails, and import the one you want.
 
 == Frequently Asked Questions ==
@@ -37,6 +37,11 @@ No. It only fetches the thumbnail images that YouTube exposes publicly.
 The selected thumbnail is added to the WordPress Media Library as a new attachment.
 
 == Changelog ==
+= 1.0.2 =
+* Switched all user-facing labels and messages to English.
+* Updated the plugin title shown in the WordPress admin.
+* Removed the `YouTube Thumbnail - ` prefix from imported media titles.
+
 = 1.0.1 =
 * Updated plugin metadata to match the `marrisonlab` brand.
 * Added a WordPress-compatible `readme.txt` for the plugin details screen.

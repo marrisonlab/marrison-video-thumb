@@ -25,12 +25,12 @@
         var url = $('#mvt-url').val().trim();
 
         if (!url) {
-            showStatus('Inserisci un URL YouTube.', 'error');
+            showStatus('Enter a YouTube URL.', 'error');
             return;
         }
 
         clearResults();
-        showStatus('<span class="mvt-spinner"></span> Estrazione thumbnail in corso...', 'loading');
+        showStatus('<span class="mvt-spinner"></span> Fetching thumbnails...', 'loading');
 
         $.post(mvtData.ajaxUrl, {
             action: 'mvt_get_thumbnails',
@@ -38,13 +38,13 @@
             url: url
         }, function (response) {
             if (response.success) {
-                showStatus('Trovate ' + response.data.thumbnails.length + ' thumbnail. Seleziona quella da importare.', 'success');
+                showStatus('Found ' + response.data.thumbnails.length + ' thumbnails. Select one to import.', 'success');
                 renderThumbnails(response.data.thumbnails);
             } else {
                 showStatus(response.data, 'error');
             }
         }).fail(function () {
-            showStatus('Errore di comunicazione con il server.', 'error');
+            showStatus('Server communication error.', 'error');
         });
     });
 
@@ -56,9 +56,9 @@
             var card = $('<div class="mvt-thumb-card"></div>');
             card.append('<img src="' + thumb.url + '" alt="' + thumb.label + '" />');
             card.append('<div class="mvt-thumb-label">' + thumb.label + '</div>');
-            card.append('<div class="mvt-thumb-dims">' + thumb.w + '×' + thumb.h + '</div>');
+            card.append('<div class="mvt-thumb-dims">' + thumb.w + ' x ' + thumb.h + '</div>');
 
-            var btn = $('<button class="button button-primary">Aggiungi ai Media</button>');
+            var btn = $('<button class="button button-primary">Add to Media Library</button>');
             btn.on('click', function () {
                 importThumbnail(thumb, card, btn);
             });
@@ -69,7 +69,7 @@
     }
 
     function importThumbnail(thumb, card, btn) {
-        btn.prop('disabled', true).html('<span class="mvt-spinner"></span> Importazione...');
+        btn.prop('disabled', true).html('<span class="mvt-spinner"></span> Importing...');
 
         $.post(mvtData.ajaxUrl, {
             action: 'mvt_import_thumbnail',
@@ -81,16 +81,16 @@
             if (response.success) {
                 card.addClass('imported');
                 btn.remove();
-                card.append('<div class="mvt-imported-msg">✓ Aggiunto ai Media!</div>');
-                card.append('<a href="' + response.data.edit_url + '" class="button" target="_blank">Modifica</a> ');
-                card.append('<a href="' + response.data.media_url + '" class="button" target="_blank">Vedi in Media</a>');
+                card.append('<div class="mvt-imported-msg">Added to the Media Library!</div>');
+                card.append('<a href="' + response.data.edit_url + '" class="button" target="_blank">Edit</a> ');
+                card.append('<a href="' + response.data.media_url + '" class="button" target="_blank">View in Media Library</a>');
             } else {
-                btn.prop('disabled', false).text('Riprova');
+                btn.prop('disabled', false).text('Retry');
                 showStatus(response.data, 'error');
             }
         }).fail(function () {
-            btn.prop('disabled', false).text('Riprova');
-            showStatus('Errore di comunicazione con il server.', 'error');
+            btn.prop('disabled', false).text('Retry');
+            showStatus('Server communication error.', 'error');
         });
     }
 
