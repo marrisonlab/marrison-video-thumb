@@ -1,5 +1,6 @@
 === Marrison Video Thumbnail ===
 Contributors: marrisonlab
+Author: Marrisonlab
 Tags: youtube, thumbnail, media library, extractor, wordpress admin
 Requires at least: 5.8
 Tested up to: 6.8
@@ -44,4 +45,3 @@ The selected thumbnail is added to the WordPress Media Library as a new attachme
 
 = 1.0.0 =
 * Initial release.
-
