@@ -75,7 +75,8 @@
             action: 'mvt_import_thumbnail',
             nonce: mvtData.nonce,
             image_url: thumb.url,
-            video_id: thumb.video_id
+            video_id: thumb.video_id,
+            video_title: thumb.video_title || ''
         }, function (response) {
             if (response.success) {
                 card.addClass('imported');

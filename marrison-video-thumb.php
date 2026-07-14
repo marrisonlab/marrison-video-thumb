@@ -1,9 +1,11 @@
 <?php
 /**
  * Plugin Name: Marrison Video Thumbnail
+ * Plugin URI:  https://github.com/marrisonlab/marrison-video-thumb/releases/tag/v1.0.1
  * Description: Paste a YouTube URL, pick a thumbnail, add it to WordPress Media Library.
- * Version: 1.0.0
- * Author: Marrison
+ * Version: 1.0.1
+ * Author: Marrisonlab
+ * Author URI:  https://marrisonlab.com
  */
 
 if (!defined('ABSPATH')) {
@@ -33,8 +35,8 @@ class Marrison_Video_Thumb {
         if ('media_page_marrison-video-thumb' !== $hook) {
             return;
         }
-        wp_enqueue_style('mvt-style', plugin_dir_url(__FILE__) . 'assets/style.css', [], '1.0.1');
-        wp_enqueue_script('mvt-script', plugin_dir_url(__FILE__) . 'assets/script.js', ['jquery'], '1.0.1', true);
+        wp_enqueue_style('mvt-style', plugin_dir_url(__FILE__) . 'assets/style.css', [], filemtime(plugin_dir_path(__FILE__) . 'assets/style.css'));
+        wp_enqueue_script('mvt-script', plugin_dir_url(__FILE__) . 'assets/script.js', ['jquery'], filemtime(plugin_dir_path(__FILE__) . 'assets/script.js'), true);
         wp_localize_script('mvt-script', 'mvtData', [
             'ajaxUrl' => admin_url('admin-ajax.php'),
             'nonce'   => wp_create_nonce('mvt_nonce'),
@@ -83,6 +85,50 @@ class Marrison_Video_Thumb {
     }
 
     /**
+     * Try to resolve the YouTube video title via oEmbed.
+     */
+    private function extract_video_title($url) {
+        $endpoint = add_query_arg([
+            'url'    => $url,
+            'format' => 'json',
+        ], 'https://www.youtube.com/oembed');
+
+        $response = wp_remote_get($endpoint, ['timeout' => 10]);
+        if (is_wp_error($response)) {
+            return false;
+        }
+
+        if ((int) wp_remote_retrieve_response_code($response) !== 200) {
+            return false;
+        }
+
+        $body = wp_remote_retrieve_body($response);
+        if (empty($body)) {
+            return false;
+        }
+
+        $data = json_decode($body, true);
+        if (!is_array($data) || empty($data['title'])) {
+            return false;
+        }
+
+        return sanitize_text_field(wp_strip_all_tags($data['title']));
+    }
+
+    /**
+     * Build a safe filename base from the video title.
+     */
+    private function build_filename_from_title($video_title, $video_id) {
+        $base = sanitize_file_name(wp_strip_all_tags((string) $video_title));
+
+        if ($base === '') {
+            $base = 'youtube_' . $video_id;
+        }
+
+        return substr($base, 0, 180);
+    }
+
+    /**
      * AJAX: Return available thumbnails for a given YouTube URL.
      */
     public function ajax_get_thumbnails() {
@@ -94,6 +140,8 @@ class Marrison_Video_Thumb {
         if (!$video_id) {
             wp_send_json_error('URL YouTube non valido. Controlla il formato.');
         }
+
+        $video_title = $this->extract_video_title($url);
 
         // Available YouTube thumbnail variants
         $candidates = [
@@ -112,6 +160,7 @@ class Marrison_Video_Thumb {
             $code = wp_remote_retrieve_response_code($response);
             if ($code === 200) {
                 $thumb['video_id'] = $video_id;
+                $thumb['video_title'] = $video_title;
                 $thumbnails[] = $thumb;
             }
         }
@@ -131,6 +180,7 @@ class Marrison_Video_Thumb {
 
         $image_url = isset($_POST['image_url']) ? esc_url_raw(wp_unslash($_POST['image_url'])) : '';
         $video_id  = isset($_POST['video_id']) ? sanitize_text_field(wp_unslash($_POST['video_id'])) : '';
+        $video_title = isset($_POST['video_title']) ? sanitize_text_field(wp_unslash($_POST['video_title'])) : '';
 
         if (empty($image_url)) {
             wp_send_json_error('URL immagine mancante.');
@@ -142,7 +192,7 @@ class Marrison_Video_Thumb {
             require_once ABSPATH . 'wp-admin/includes/image.php';
         }
 
-        $filename = 'youtube_' . $video_id . '_' . time();
+        $filename = $this->build_filename_from_title($video_title, $video_id);
 
         // Download the image
         $tmp = download_url($image_url);
@@ -174,7 +224,8 @@ class Marrison_Video_Thumb {
             wp_send_json_error('Il file scaricato non è un\'immagine valida.');
         }
 
-        $attachment_id = media_handle_sideload($file_array, 0, 'YouTube Thumbnail - ' . $video_id);
+        $attachment_desc = !empty($video_title) ? 'YouTube Thumbnail - ' . $video_title : 'YouTube Thumbnail - ' . $video_id;
+        $attachment_id = media_handle_sideload($file_array, 0, $attachment_desc);
 
         if (is_wp_error($attachment_id)) {
             @unlink($tmp);
