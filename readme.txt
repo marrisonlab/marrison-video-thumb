@@ -4,7 +4,7 @@ Tags: youtube, thumbnail, media library, extractor, wordpress admin
 Requires at least: 5.8
 Tested up to: 6.8
 Requires PHP: 7.4
-Stable tag: 1.0.2
+Stable tag: 1.0.3
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -37,6 +37,11 @@ No. It only fetches the thumbnail images that YouTube exposes publicly.
 The selected thumbnail is added to the WordPress Media Library as a new attachment.
 
 == Changelog ==
+= 1.0.3 =
+* Added GitHub release-based update detection for installed sites.
+* Enabled the WordPress update notice and "View details" modal.
+* Kept the plugin metadata aligned with the GitHub release tag flow.
+
 = 1.0.2 =
 * Switched all user-facing labels and messages to English.
 * Updated the plugin title shown in the WordPress admin.

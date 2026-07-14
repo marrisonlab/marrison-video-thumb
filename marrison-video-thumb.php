@@ -1,9 +1,10 @@
 <?php
 /**
  * Plugin Name: Marrison Video Thumbnail
- * Plugin URI:  https://github.com/marrisonlab/marrison-video-thumb/releases/tag/v1.0.2
+ * Plugin URI:  https://github.com/marrisonlab/marrison-video-thumb/releases/tag/v1.0.3
+ * Update URI:   https://github.com/marrisonlab/marrison-video-thumb/
  * Description: Paste a YouTube URL, pick a thumbnail, and add it to the WordPress Media Library.
- * Version: 1.0.2
+ * Version: 1.0.3
  * Author: Marrisonlab
  * Author URI:  https://marrisonlab.com
  */
@@ -12,11 +13,17 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
+if (!defined('MVT_VERSION')) {
+    define('MVT_VERSION', '1.0.3');
+}
+
 class Marrison_Video_Thumb {
 
     public function __construct() {
         add_action('admin_menu', [$this, 'add_admin_page']);
         add_action('admin_enqueue_scripts', [$this, 'enqueue_assets']);
+        add_filter('site_transient_update_plugins', [$this, 'check_for_updates']);
+        add_filter('plugins_api', [$this, 'plugins_api'], 20, 3);
         add_action('wp_ajax_mvt_get_thumbnails', [$this, 'ajax_get_thumbnails']);
         add_action('wp_ajax_mvt_import_thumbnail', [$this, 'ajax_import_thumbnail']);
     }
@@ -126,6 +133,123 @@ class Marrison_Video_Thumb {
         }
 
         return substr($base, 0, 180);
+    }
+
+    /**
+     * Retrieve the latest GitHub release data.
+     */
+    private function get_latest_release_data() {
+        $cached = get_transient('mvt_github_release_data');
+        if ($cached !== false) {
+            return $cached;
+        }
+
+        if (get_transient('mvt_github_fetch_failed') !== false) {
+            return false;
+        }
+
+        $response = wp_remote_get('https://api.github.com/repos/marrisonlab/marrison-video-thumb/releases/latest', [
+            'timeout' => 5,
+            'headers' => [
+                'Accept' => 'application/vnd.github+json',
+                'User-Agent' => 'WordPress/MarrisonVideoThumbnail',
+            ],
+        ]);
+
+        if (is_wp_error($response) || (int) wp_remote_retrieve_response_code($response) !== 200) {
+            set_transient('mvt_github_fetch_failed', 1, 5 * MINUTE_IN_SECONDS);
+            return false;
+        }
+
+        $body = json_decode(wp_remote_retrieve_body($response), true);
+        if (!is_array($body) || empty($body['tag_name']) || empty($body['zipball_url'])) {
+            return false;
+        }
+
+        $version = preg_replace('/^v/i', '', trim((string) $body['tag_name']));
+        if ($version === '') {
+            return false;
+        }
+
+        $data = [
+            'tag_name'      => $body['tag_name'],
+            'version'       => $version,
+            'zipball_url'   => $body['zipball_url'],
+            'html_url'      => !empty($body['html_url']) ? $body['html_url'] : 'https://github.com/marrisonlab/marrison-video-thumb/releases/latest',
+            'published_at'  => !empty($body['published_at']) ? $body['published_at'] : '',
+        ];
+
+        set_transient('mvt_github_release_data', $data, 6 * HOUR_IN_SECONDS);
+        return $data;
+    }
+
+    /**
+     * Inject the GitHub update into WordPress.
+     */
+    public function check_for_updates($transient) {
+        if (!is_object($transient) || empty($transient->checked)) {
+            return $transient;
+        }
+
+        $release = $this->get_latest_release_data();
+        if (!$release) {
+            return $transient;
+        }
+
+        if (version_compare(MVT_VERSION, $release['version'], '>=')) {
+            return $transient;
+        }
+
+        $plugin_file = plugin_basename(__FILE__);
+        $transient->response[$plugin_file] = (object) [
+            'slug'        => 'marrison-video-thumb',
+            'plugin'      => $plugin_file,
+            'new_version' => $release['version'],
+            'url'         => 'https://github.com/marrisonlab/marrison-video-thumb',
+            'package'     => $release['zipball_url'],
+        ];
+
+        return $transient;
+    }
+
+    /**
+     * Populate the "View details" modal from the GitHub release.
+     */
+    public function plugins_api($result, $action, $args) {
+        if ('plugin_information' !== $action || empty($args->slug) || 'marrison-video-thumb' !== $args->slug) {
+            return $result;
+        }
+
+        $release = $this->get_latest_release_data();
+        if (!$release) {
+            return $result;
+        }
+
+        $info = new stdClass();
+        $info->name = 'Marrison Video Thumbnail';
+        $info->slug = 'marrison-video-thumb';
+        $info->version = $release['version'];
+        $info->author = '<a href="https://marrisonlab.com">Marrisonlab</a>';
+        $info->homepage = 'https://github.com/marrisonlab/marrison-video-thumb';
+        $info->download_link = $release['zipball_url'];
+        $info->requires = '5.8';
+        $info->tested = '6.8';
+        $info->requires_php = '7.4';
+        $info->last_updated = !empty($release['published_at']) ? $release['published_at'] : current_time('mysql');
+        $info->sections = [
+            'description' => 'Paste a YouTube video URL to fetch the available thumbnails and import the selected image directly into the WordPress Media Library.',
+            'changelog'   => $this->get_plugin_changelog(),
+        ];
+
+        return $info;
+    }
+
+    /**
+     * Return a short changelog for the plugin details modal.
+     */
+    private function get_plugin_changelog() {
+        return '<h4>1.0.3</h4><ul><li>Added GitHub release-based update detection.</li><li>Enabled WordPress update notifications for installed sites.</li><li>Added plugin details support for the "View details" modal.</li></ul>'
+            . '<h4>1.0.2</h4><ul><li>Switched all user-facing labels and messages to English.</li><li>Updated the admin plugin title to Marrison Video Thumbnail.</li><li>Removed the YouTube Thumbnail prefix from imported media titles.</li></ul>';
     }
 
     /**
