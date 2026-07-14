@@ -1,5 +1,4 @@
 === Marrison Video Thumbnail ===
-Contributors: marrisonlab
 Author: Marrisonlab
 Tags: youtube, thumbnail, media library, extractor, wordpress admin
 Requires at least: 5.8
